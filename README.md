@@ -249,7 +249,7 @@ match("abcdefg_123456")
 - [x] Composable predicates
 - [x] Simple to write custom predicates
 - [ ] Ranges support
-- [ ] Improved compile time error reporting
+- [ ] Improved compile time error reporting
 
 ## Code generation comparison
 
