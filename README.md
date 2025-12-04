@@ -5,6 +5,8 @@ Patum is a festival of pattern matching for c++20 dressed in a header only const
 
 ### Disclaimer: No macros have been harmed for making this library !
 
+[![CI](https://github.com/kunitoki/patum/actions/workflows/ci.yml/badge.svg)](https://github.com/kunitoki/patum/actions/workflows/ci.yml)
+
 ## Examples
 
 Simple value matching (and constexpr!):
