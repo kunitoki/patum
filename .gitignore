@@ -1,0 +1,46 @@
+# Global
+*.orig
+*.bak
+*.rej
+*.cache
+
+# macOS
+.DS_Store
+*.xcuserstate
+*.xcbkptlist
+**/xcuserdata/
+**/Objects-normal/
+*.dia
+*.LinkFileList
+dgph
+
+# Win
+**/.vscode/
+**/.vs/
+**/x64/
+*.vcxproj.user
+*.ilk
+*.pdb
+
+# Prerequisites
+*.d
+*.slo
+*.lo
+*.o
+*.obj
+*.gch
+*.pch
+*.so
+*.dylib
+*.dll
+*.lai
+*.la
+*.a
+*.lib
+*.exe
+*.out
+*.app
+
+# Folders
+build/*
+.idea
