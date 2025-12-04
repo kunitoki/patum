@@ -162,6 +162,13 @@ TEST_CASE("Simple matcher movable objects", "[match][move]")
 
     REQUIRE(matched_pattern.has_value());
     CHECK(matched_pattern->counter == 3);
+#if _MSC_VER
+    // The result of 5 move constructors (there are 3 movable_copyable objects):
+    // + (1) the matched one is then moved into the invoker
+    // + (1) then it's emplaced into the result optional
+    // = (5)
+    CHECK(movable_copyable::move_count == 5);
+#else
     // The result of 6 move constructors (there are 3 movable_copyable objects):
     //   (3) they are moved into the pattern()
     // + (1) the matched one is then moved into the invoker
@@ -169,6 +176,7 @@ TEST_CASE("Simple matcher movable objects", "[match][move]")
     // + (1) then the optional is returned with NRVO
     // = (6)
     CHECK(movable_copyable::move_count == 6);
+#endif
     CHECK(movable_copyable::copy_count == 0);
     CHECK(movable_copyable::move_assign_count == 0);
     CHECK(movable_copyable::copy_assign_count == 0);
