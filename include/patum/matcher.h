@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "tuple.h"
+#include "reference.h"
 
 namespace ptm {
 
@@ -40,52 +41,76 @@ struct matcher
     }
 
     template <class... U>
-    constexpr decltype(auto) get(const U&... values_to_test) &
+    constexpr decltype(auto) get(U&&... values_to_test) &
     {
         if constexpr (std::is_invocable_v<T>)
             return result_();
 
-        else if constexpr (std::is_invocable_v<T, U...>)
-            return result_(values_to_test...);
+        else if constexpr (std::is_invocable_v<T, decltype(std::forward<U>(values_to_test))...>)
+            return result_(std::forward<U>(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<T, decltype(std::move(values_to_test))...>)
+            return result_(std::move(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
+            return result_(dereference(values_to_test)...);
 
         else
             return result_;
     }
 
     template <class... U>
-    constexpr decltype(auto) get(const U&... values_to_test) &&
+    constexpr decltype(auto) get(U&&... values_to_test) &&
     {
         if constexpr (std::is_invocable_v<T>)
             return result_();
 
-        else if constexpr (std::is_invocable_v<T, U...>)
-            return result_(values_to_test...);
+        else if constexpr (std::is_invocable_v<T, decltype(std::forward<U>(values_to_test))...>)
+            return result_(std::forward<U>(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<T, decltype(std::move(values_to_test))...>)
+            return result_(std::move(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
+            return result_(dereference(values_to_test)...);
 
         else
             return std::move(result_);
     }
 
     template <class... U>
-    constexpr decltype(auto) get(const U&... values_to_test) const &
+    constexpr decltype(auto) get(U&&... values_to_test) const &
     {
         if constexpr (std::is_invocable_v<const T>)
             return result_();
 
-        else if constexpr (std::is_invocable_v<const T, U...>)
-            return result_(values_to_test...);
+        else if constexpr (std::is_invocable_v<const T, decltype(std::forward<U>(values_to_test))...>)
+            return result_(std::forward<U>(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<const T, decltype(std::move(values_to_test))...>)
+            return result_(std::move(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
+            return result_(dereference(values_to_test)...);
 
         else
             return result_;
     }
 
     template <class... U>
-    constexpr decltype(auto) get(const U&... values_to_test) const &&
+    constexpr decltype(auto) get(U&&... values_to_test) const &&
     {
         if constexpr (std::is_invocable_v<const T>)
             return result_();
 
-        else if constexpr (std::is_invocable_v<const T, U...>)
-            return result_(values_to_test...);
+        else if constexpr (std::is_invocable_v<const T, decltype(std::forward<U>(values_to_test))...>)
+            return result_(std::forward<U>(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<const T, decltype(std::move(values_to_test))...>)
+            return result_(std::move(values_to_test)...);
+
+        else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
+            return result_(dereference(values_to_test)...);
 
         else
             return std::move(result_);

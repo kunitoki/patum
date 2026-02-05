@@ -706,6 +706,18 @@ TEST_CASE("Simple matcher optional some", "[match][some]")
 
         match(x)
         (
+            pattern(some()) = [&](int v) { matched_pattern = v; },
+            pattern(_)      = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
             pattern(some()) = [&] { matched_pattern = 1; },
             pattern(_)      = [&] { matched_pattern = 2; }
         );
@@ -859,6 +871,18 @@ TEST_CASE("Simple matcher pointer some", "[match][some]")
 
         match(x)
         (
+            pattern(some()) = [&](int v) { matched_pattern = v; },
+            pattern(_)      = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
             pattern(some(42)) = [&] { matched_pattern = 1; },
             pattern(_)        = [&] { matched_pattern = 2; }
         );
@@ -871,11 +895,35 @@ TEST_CASE("Simple matcher pointer some", "[match][some]")
 
         match(x)
         (
+            pattern(some(42)) = [&](int v) { matched_pattern = v; },
+            pattern(_)        = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
             pattern(some(11)) = [&] { matched_pattern = 1; },
             pattern(_)        = [&] { matched_pattern = 2; }
         );
 
         CHECK(matched_pattern == 2);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some(42)) = [&](std::unique_ptr<int>&& v) { matched_pattern = *v; },
+            pattern(_)        = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
     }
 }
 
@@ -909,6 +957,75 @@ TEST_CASE("Simple matcher pointer none", "[match][some]")
 
         CHECK(matched_pattern == 2);
     }
+}
+
+//=================================================================================================
+
+TEST_CASE("Simple matcher raw pointer some", "[match][some]")
+{
+    int* x = new int(42);
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some()) = [&] { matched_pattern = 1; },
+            pattern(_)      = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 1);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some()) = [&](int v) { matched_pattern = v; },
+            pattern(_)      = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some(42)) = [&] { matched_pattern = 1; },
+            pattern(_)        = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 1);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some(42)) = [&](int v) { matched_pattern = v; },
+            pattern(_)        = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 42);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(some(11)) = [&] { matched_pattern = 1; },
+            pattern(_)        = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+    
+    delete x;
 }
 
 //=================================================================================================

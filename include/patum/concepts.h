@@ -31,6 +31,14 @@ concept boolean_testable = requires(T&& v)
 
 //=================================================================================================
 
+template <class T>
+concept dereferenceable = requires(T&& v)
+    {
+        { *v };
+    };
+
+//=================================================================================================
+
 template <class T, class U>
 concept dereferenceable_comparable_with = requires(T&& v)
     {

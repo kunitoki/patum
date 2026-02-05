@@ -42,33 +42,33 @@ constexpr auto match_expressions(const M& matcher, const E& expressions)
 }
 
 template <class M, class E>
-constexpr auto test_expressions(const M& matcher, const E& expressions)
+constexpr auto test_expressions(const M& matcher, E&& expressions)
 {
-    return std::apply([&](const auto&... ex)
+    return std::apply([&]<class... E2>(E2&&... ex)
     {
-        return matcher.get(ex...);
-    }, expressions);
+        return matcher.get(std::forward<E2>(ex)...);
+    }, std::forward<E>(expressions));
 }
 
 template <class R, class M, class E>
-constexpr void invoke_result_expressions(std::optional<R>& result, M&& matcher, const E& expressions)
+constexpr void invoke_result_expressions(std::optional<R>& result, M&& matcher, E&& expressions)
 {
-    std::apply([&, m = std::forward<M>(matcher)](const auto&... ex) mutable
+    std::apply([&, m = std::forward<M>(matcher)]<class... E2>(E2&&... ex) mutable
     {
-        if constexpr (std::same_as<decltype(m.get(ex...)), void>)
-            std::move(m).get(ex...);
+        if constexpr (std::same_as<decltype(m.get(std::forward<E2>(ex)...)), void>)
+            std::move(m).get(std::forward<E2>(ex)...);
         else
-            result.emplace(std::move(m).get(ex...));
-    }, expressions);
+            result.emplace(std::move(m).get(std::forward<E2>(ex)...));
+    }, std::forward<E>(expressions));
 }
 
 template <class M, class E>
-constexpr void invoke_expressions(M&& matcher, const E& expressions)
+constexpr void invoke_expressions(M&& matcher, E&& expressions)
 {
-    std::apply([m = std::forward<M>(matcher)](const auto&... ex) mutable
+    std::apply([m = std::forward<M>(matcher)]<class... E2>(E2&&... ex) mutable
     {
-        std::move(m).get(ex...);
-    }, expressions);
+        std::move(m).get(std::forward<E2>(ex)...);
+    }, std::forward<E>(expressions));
 }
 
 //=================================================================================================
