@@ -55,6 +55,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (is_callable_v<decltype(result_)>)
+            static_assert(always_false_v<decltype(result_)>);
+
         else
             return result_;
     }
@@ -73,6 +76,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (is_callable_v<decltype(result_)>)
+            static_assert(always_false_v<decltype(result_)>);
 
         else
             return std::move(result_);
@@ -93,6 +99,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (is_callable_v<decltype(result_)>)
+            static_assert(always_false_v<decltype(result_)>);
+
         else
             return result_;
     }
@@ -111,6 +120,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (is_callable_v<decltype(result_)>)
+            static_assert(always_false_v<decltype(result_)>);
 
         else
             return std::move(result_);
