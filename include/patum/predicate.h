@@ -430,7 +430,7 @@ constexpr auto operator>>(const predicate<F>& m, const predicate<F2>& m2)
 template <class F, class T>
 constexpr auto operator<<(const predicate<F>& m, const T& t)
 {
-    return predicate([m, &t](const auto& x) { return m(x) >> t; });
+    return predicate([m, &t](const auto& x) { return m(x) << t; });
 }
 
 template <class F, class T>
@@ -589,6 +589,80 @@ constexpr auto ds(Args&&... values) noexcept
 
 //=================================================================================================
 
+namespace detail {
+
+template <class U, class T, std::size_t... I>
+constexpr bool sequence_match_impl(const U& value_to_test, const T& value, std::index_sequence<I...>)
+{
+    using RangeDifference = std::ranges::range_difference_t<U>;
+
+    if (std::ranges::distance(value_to_test) != static_cast<RangeDifference>(sizeof...(I)))
+        return false;
+
+    auto it = std::ranges::begin(value_to_test);
+    return (true && ... && (evaluate_match(std::get<I>(value), *it++)));
+}
+
+template <class U, class T, std::size_t... I>
+constexpr bool starts_with_impl(const U& value_to_test, const T& value, std::index_sequence<I...>)
+{
+    if (std::ranges::distance(value_to_test) < static_cast<std::ranges::range_difference_t<U>>(sizeof...(I)))
+        return false;
+
+    auto it = std::ranges::begin(value_to_test);
+    return (true && ... && (evaluate_match(std::get<I>(value), *it++)));
+}
+
+template <class U, class T, std::size_t... I>
+constexpr bool ends_with_impl(const U& value_to_test, const T& value, std::index_sequence<I...>)
+{
+    using RangeDifference = std::ranges::range_difference_t<U>;
+    constexpr auto pattern_size = static_cast<RangeDifference>(sizeof...(I));
+    const auto value_size = std::ranges::distance(value_to_test);
+
+    if (value_size < pattern_size)
+        return false;
+
+    auto it = std::ranges::next(std::ranges::begin(value_to_test), value_size - pattern_size);
+    return (true && ... && (evaluate_match(std::get<I>(value), *it++)));
+}
+
+}
+
+//=================================================================================================
+
+template <class... Args>
+constexpr auto seq(Args&&... values) noexcept
+{
+    return predicate([value = std::forward_as_tuple(values...)]<class U>(const U& value_to_test)
+        requires std::ranges::forward_range<U>
+    {
+        return detail::sequence_match_impl(value_to_test, value, std::make_index_sequence<sizeof...(Args)>{});
+    });
+}
+
+template <class... Args>
+constexpr auto starts_with(Args&&... values) noexcept
+{
+    return predicate([value = std::forward_as_tuple(values...)]<class U>(const U& value_to_test)
+        requires std::ranges::forward_range<U>
+    {
+        return detail::starts_with_impl(value_to_test, value, std::make_index_sequence<sizeof...(Args)>{});
+    });
+}
+
+template <class... Args>
+constexpr auto ends_with(Args&&... values) noexcept
+{
+    return predicate([value = std::forward_as_tuple(values...)]<class U>(const U& value_to_test)
+        requires std::ranges::forward_range<U>
+    {
+        return detail::ends_with_impl(value_to_test, value, std::make_index_sequence<sizeof...(Args)>{});
+    });
+}
+
+//=================================================================================================
+
 constexpr auto sized(std::size_t count) noexcept
 {
     return predicate([count]<class U>(const U& value_to_test)
@@ -684,6 +758,36 @@ constexpr auto find(T&& value, Proj proj = {}) noexcept
         requires std::ranges::input_range<U>
     {
         return std::ranges::find(value_to_test, std::move(value), std::move(proj));
+    });
+}
+
+//=================================================================================================
+
+template <class T, class Proj = std::identity>
+constexpr auto contains(T&& value, Proj proj = {}) noexcept
+{
+    return predicate([value = std::forward<T>(value), proj = std::forward<Proj>(proj)]<class U>(const U& value_to_test)
+        requires std::ranges::input_range<U>
+    {
+        return std::ranges::find(value_to_test, value, proj) != std::ranges::end(value_to_test);
+    });
+}
+
+constexpr auto empty() noexcept
+{
+    return predicate([]<class U>(const U& value_to_test)
+        requires std::ranges::range<U>
+    {
+        return std::ranges::empty(value_to_test);
+    });
+}
+
+constexpr auto non_empty() noexcept
+{
+    return predicate([]<class U>(const U& value_to_test)
+        requires std::ranges::range<U>
+    {
+        return not std::ranges::empty(value_to_test);
     });
 }
 

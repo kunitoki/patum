@@ -283,6 +283,10 @@ std::vector<int> x = { 1, 2, 3, 4, 5 };
 
 match(x)
 (
+    pattern(seq(1, 2, _, 4, 5))              = [] { std::cout << "found an exact sequence"; },
+    pattern(starts_with(1, 2))               = [] { std::cout << "found matching prefix"; },
+    pattern(ends_with(4, 5))                 = [] { std::cout << "found matching suffix"; },
+    pattern(contains(3))                     = [] { std::cout << "found value 3"; },
     pattern(sized(5))                        = [] { std::cout << "found five values"; },
     pattern(find(3) != end())                = [] { std::cout << "found value 3"; },
     pattern(next(begin()) == prev(end(), 4)) = [] { std::cout << "iterators line up"; },
@@ -291,8 +295,9 @@ match(x)
 
 match(x)
 (
-    pattern(size(_x) == 5 && ssize(_x) > 0) = [] { std::cout << "non-empty five-value range"; },
-    pattern(_)                             = [] { std::cout << "found no match"; }
+    pattern(size(_x) == 5 && ssize(_x) > 0 && non_empty()) = [] { std::cout << "non-empty five-value range"; },
+    pattern(empty())                                      = [] { std::cout << "empty range"; },
+    pattern(_)                                            = [] { std::cout << "found no match"; }
 );
 ```
 
@@ -315,6 +320,8 @@ match(x)
 - [x] Polymorphic typed matcher for base pointers/references
 - [x] Size and signed-size matchers
 - [x] Range iterator predicates: begin, end, next, prev, find
+- [x] Range structural matchers: seq, starts_with, ends_with
+- [x] Range convenience predicates: contains, empty, non_empty
 - [x] Regex matcher (std::regex)
 - [x] Regex matcher (google's re2 support)
 - [x] Destructuring std::tuple / std::pair matcher

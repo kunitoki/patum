@@ -10,7 +10,9 @@
 
 #include <snitch_all.hpp>
 
+#include <array>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -1462,6 +1464,30 @@ TEST_CASE("Simple matcher with predicates", "[match][predicates]")
 
         CHECK(matched_pattern == 1);
     }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern((_x << 1) == 2674) = [&] { matched_pattern = 1; },
+            pattern(_)                 = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 1);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern((_x >> 1) == 668) = [&] { matched_pattern = 1; },
+            pattern(_)                = [&] { matched_pattern = 2; }
+        );
+
+        CHECK(matched_pattern == 1);
+    }
 }
 
 //=================================================================================================
@@ -1653,6 +1679,127 @@ TEST_CASE("Simple matcher find in range", "[match][ranges]")
 
         CHECK(matched_pattern == 2);
     }
+}
+
+//=================================================================================================
+
+TEST_CASE("Simple matcher sequence in range", "[match][ranges]")
+{
+    std::vector<int> x = { 1, 2, 3, 4 };
+    std::array<int, 3> y = { 1, 2, 3 };
+    std::span<const int> z = y;
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(seq(1, 2, 3))       = [&] { matched_pattern = 1; },
+            pattern(seq(1, _, _x > 3))  = [&] { matched_pattern = 2; },
+            pattern(seq(1, _, 3, _))    = [&] { matched_pattern = 3; },
+            pattern(_)                  = [&] { matched_pattern = 4; }
+        );
+
+        CHECK(matched_pattern == 3);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(z)
+        (
+            pattern(seq(1, 2, 4)) = [&] { matched_pattern = 1; },
+            pattern(seq(1, _, 3)) = [&] { matched_pattern = 2; },
+            pattern(_)            = [&] { matched_pattern = 3; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+
+    static_assert(match(std::array{ 1, 2, 3 })
+    (
+        pattern(seq(1, 2, 3)) = 1,
+        pattern(_)            = 2
+    ).value_or(0) == 1);
+}
+
+//=================================================================================================
+
+TEST_CASE("Simple matcher contains and empty in range", "[match][ranges]")
+{
+    std::vector<int> x = { 1, 2, 3, 4 };
+    std::vector<int> y;
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(contains(5)) = [&] { matched_pattern = 1; },
+            pattern(contains(3)) = [&] { matched_pattern = 2; },
+            pattern(_)           = [&] { matched_pattern = 3; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(y)
+        (
+            pattern(non_empty()) = [&] { matched_pattern = 1; },
+            pattern(empty())     = [&] { matched_pattern = 2; },
+            pattern(_)           = [&] { matched_pattern = 3; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+
+    static_assert(match(std::array{ 1, 2, 3 })
+    (
+        pattern(contains(2)) = 1,
+        pattern(_)           = 2
+    ).value_or(0) == 1);
+}
+
+//=================================================================================================
+
+TEST_CASE("Simple matcher starts and ends with range", "[match][ranges]")
+{
+    std::vector<int> x = { 1, 2, 3, 4 };
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(starts_with(2, 3)) = [&] { matched_pattern = 1; },
+            pattern(starts_with(1, _)) = [&] { matched_pattern = 2; },
+            pattern(_)                 = [&] { matched_pattern = 3; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+
+    {
+        int matched_pattern = 0;
+
+        match(x)
+        (
+            pattern(ends_with(2, 3))       = [&] { matched_pattern = 1; },
+            pattern(ends_with(_x > 2, 4))  = [&] { matched_pattern = 2; },
+            pattern(_)                     = [&] { matched_pattern = 3; }
+        );
+
+        CHECK(matched_pattern == 2);
+    }
+
+    static_assert(match(std::array{ 1, 2, 3 })
+    (
+        pattern(starts_with(1, 2) && ends_with(2, 3)) = 1,
+        pattern(_)                                    = 2
+    ).value_or(0) == 1);
 }
 
 //=================================================================================================
