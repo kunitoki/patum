@@ -1587,6 +1587,30 @@ TEST_CASE("Simple matcher destructure tuple", "[match][destructure]")
 
         CHECK(matched_pattern == 4);
     }
+
+    {
+        auto matched_pattern = match(x)
+        (
+            pattern(ds(_, _)) = [](int value, const std::string& text) {
+                return value + static_cast<int>(text.size());
+            }
+        );
+
+        CHECK(matched_pattern.value_or(0) == 1340);
+    }
+
+    {
+        match(x)
+        (
+            pattern(ds(_, _)) = [](int& value, std::string& text) {
+                value = 42;
+                text = "changed";
+            }
+        );
+
+        CHECK(std::get<0>(x) == 42);
+        CHECK(std::get<1>(x) == "changed");
+    }
 }
 
 //=================================================================================================
@@ -1630,6 +1654,32 @@ TEST_CASE("Simple matcher destructure struct", "[match][destructure]")
         );
 
         CHECK(matched_pattern == 4);
+    }
+
+    {
+        auto matched_pattern = match(x)
+        (
+            pattern(ds(_, _, _)) = [](int value, float amount, char tag) {
+                return value + static_cast<int>(amount) + tag;
+            }
+        );
+
+        CHECK(matched_pattern.value_or(0) == 1477);
+    }
+
+    {
+        match(x)
+        (
+            pattern(ds(_, _, _)) = [](int& value, float& amount, char& tag) {
+                value = 1;
+                amount = 2.0f;
+                tag = 'c';
+            }
+        );
+
+        CHECK(x.x == 1);
+        CHECK(x.y == 2.0f);
+        CHECK(x.z == 'c');
     }
 }
 

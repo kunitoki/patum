@@ -241,6 +241,13 @@ match(x)
     pattern(ds(_x >= 1000, "abc")) = [] { std::cout << "found a tuple with >= 1000 and 'abc'"; },
     pattern(_)                     = [] { std::cout << "found no matching tuple"; }
 );
+
+auto value = match(x)
+(
+    pattern(ds(_, _)) = [](int number, const std::string& text) {
+        return number + static_cast<int>(text.size());
+    }
+);
 ```
 
 Aggregate destructure matching:
@@ -261,6 +268,15 @@ match(x)
     pattern(ds(1338, _, 'a'))                         = [] { std::cout << "found aggregate 1"; },
     pattern(ds(_x <= 1338, _y >= 0.0f, in('a', 'b'))) = [] { std::cout << "found aggregate 2"; },
     pattern(_)                                        = [] { std::cout << "found no matching aggregate"; }
+);
+
+match(x)
+(
+    pattern(ds(_, _, _)) = [](int& number, float& amount, char& tag) {
+        number = 1;
+        amount = 2.0f;
+        tag = 'c';
+    }
 );
 ```
 
@@ -326,7 +342,7 @@ match(x)
 - [x] Regex matcher (google's re2 support)
 - [x] Destructuring std::tuple / std::pair matcher
 - [x] Destructuring aggregates matcher
-- [ ] Forwarding destructured matches to match callables
+- [x] Forwarding destructured matches to match callables
 - [x] Composable predicates
 - [x] Simple to write custom predicates
 - [x] Ranges predicate support for input ranges

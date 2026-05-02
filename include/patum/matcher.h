@@ -18,6 +18,7 @@
 #include "tuple.h"
 #include "reference.h"
 #include "func_traits.h"
+#include "predicate.h"
 
 namespace ptm {
 namespace detail {
@@ -98,6 +99,55 @@ decltype(auto) invoke_with_polymorphic_cast(F&& f, std::index_sequence<I...>, U&
         polymorphic_cast<function_argument_t<I, std::remove_reference_t<F>>>(std::forward<U>(u))...
     );
 }
+
+template <class PatternTuple, class ValueTuple, std::size_t... I>
+constexpr auto capture_tuple(PatternTuple&& patterns, ValueTuple&& values, std::index_sequence<I...>)
+{
+    return std::tuple_cat(
+        ptm::match_captures(
+            std::get<I>(std::forward<PatternTuple>(patterns)),
+            std::get<I>(std::forward<ValueTuple>(values))
+        )...
+    );
+}
+
+template <class PatternTuple, class ValueTuple>
+using capture_tuple_t = decltype(capture_tuple(
+    std::declval<PatternTuple>(),
+    std::declval<ValueTuple>(),
+    std::make_index_sequence<std::tuple_size_v<remove_cvref_t<PatternTuple>>>{}
+));
+
+template <class F, class Tuple, std::size_t... I>
+consteval bool tuple_invocable(std::index_sequence<I...>)
+{
+    return std::is_invocable_v<F, decltype(std::get<I>(std::declval<Tuple>()))...>;
+}
+
+template <class F, class PatternTuple, class... U>
+consteval bool invocable_with_match_captures()
+{
+    using value_tuple = std::tuple<U...>;
+    using captures_tuple = capture_tuple_t<const PatternTuple&, value_tuple>;
+
+    return tuple_invocable<F, captures_tuple>(std::make_index_sequence<std::tuple_size_v<captures_tuple>>{});
+}
+
+template <class F, class PatternTuple, class... U>
+decltype(auto) invoke_with_match_captures(F&& f, const PatternTuple& patterns, U&&... values)
+{
+    auto value_tuple = std::forward_as_tuple(std::forward<U>(values)...);
+    auto captures = capture_tuple(
+        patterns,
+        value_tuple,
+        std::make_index_sequence<std::tuple_size_v<remove_cvref_t<PatternTuple>>>{}
+    );
+
+    return std::apply([&]<class... C>(C&&... c) -> decltype(auto)
+    {
+        return std::invoke(std::forward<F>(f), std::forward<C>(c)...);
+    }, captures);
+}
 } // namespace detail
 
 template <class F, class... U>
@@ -140,6 +190,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (detail::invocable_with_match_captures<T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
+
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
                 result_,
@@ -168,6 +221,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (detail::invocable_with_match_captures<T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(std::move(result_), args_, std::forward<U>(values_to_test)...);
 
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
@@ -198,6 +254,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (detail::invocable_with_match_captures<const T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
+
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
                 result_,
@@ -226,6 +285,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (detail::invocable_with_match_captures<const T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
 
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(

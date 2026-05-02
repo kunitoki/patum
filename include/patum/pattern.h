@@ -19,7 +19,7 @@ template <class... Args>
 struct match_pattern
 {
     constexpr explicit match_pattern(Args&&... args)
-        : args_(std::forward_as_tuple(args...))
+        : args_(std::forward<Args>(args)...)
     {
     }
 

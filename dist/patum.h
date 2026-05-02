@@ -895,34 +895,266 @@ inline static constexpr auto is = predicate([]<class U>([[maybe_unused]] const U
         return false;
 });
 
-template <class... Args>
-constexpr auto ds(Args&&... values) noexcept
-{
-    using T = std::tuple<Args...>;
+namespace detail {
 
-    return predicate([value = std::forward_as_tuple(values...)]<class U>(const U& value_to_test)
+template <class T>
+concept tuple_like = requires
+{
+    typename std::tuple_size<std::remove_cvref_t<T>>::type;
+};
+
+template <class T>
+inline static constexpr bool aggregate_like_v = std::is_aggregate_v<std::remove_cvref_t<T>>;
+
+template <class T>
+inline static constexpr std::size_t aggregate_size_v = []
+{
+    using T2 = std::remove_cvref_t<T>;
+
+    if constexpr (aggregate_like_v<T2>)
+        return member_count_v<T2>;
+    else
+        return std::size_t{ 0 };
+}();
+
+template <class T>
+inline static constexpr std::size_t tuple_like_size_v = []
+{
+    using T2 = std::remove_cvref_t<T>;
+
+    if constexpr (tuple_like<T2>)
+        return std::tuple_size_v<T2>;
+    else
+        return std::size_t{ 0 };
+}();
+
+template <class T>
+inline static constexpr bool destructurable_candidate_v = aggregate_like_v<T> || tuple_like<T>;
+
+template <class T, std::size_t N>
+inline static constexpr bool aggregate_destructurable_v = aggregate_size_v<T> >= N;
+
+template <class T, std::size_t N>
+inline static constexpr bool tuple_destructurable_v = tuple_like_size_v<T> >= N;
+
+template <class T, std::size_t N>
+inline static constexpr bool destructurable_v =
+    aggregate_destructurable_v<T, N> || tuple_destructurable_v<T, N>;
+
+template <std::size_t N>
+struct forward_to_tuple_t;
+
+template <>
+struct forward_to_tuple_t<0>
+{
+    template <class S>
+    constexpr auto operator()(S&&) const
     {
-        if constexpr (std::is_aggregate_v<U> && member_count_v<U> >= sizeof...(Args))
+        return std::forward_as_tuple();
+    }
+};
+
+template <>
+struct forward_to_tuple_t<1>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0] = std::forward<S>(s);
+        return std::forward_as_tuple(e0);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<2>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<3>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<4>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2, e3] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2, e3);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<5>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2, e3, e4] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2, e3, e4);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<6>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2, e3, e4, e5] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2, e3, e4, e5);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<7>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2, e3, e4, e5, e6] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2, e3, e4, e5, e6);
+    }
+};
+
+template <>
+struct forward_to_tuple_t<8>
+{
+    template <class S>
+    constexpr auto operator()(S&& s) const
+    {
+        auto&& [e0, e1, e2, e3, e4, e5, e6, e7] = std::forward<S>(s);
+        return std::forward_as_tuple(e0, e1, e2, e3, e4, e5, e6, e7);
+    }
+};
+
+template <std::size_t N, class T, std::size_t... I>
+constexpr auto take_tuple(T&& value, std::index_sequence<I...>)
+{
+    return std::forward_as_tuple(std::get<I>(std::forward<T>(value))...);
+}
+
+template <std::size_t N, class T>
+constexpr auto take_tuple(T&& value)
+{
+    return take_tuple<N>(std::forward<T>(value), std::make_index_sequence<N>{});
+}
+
+}
+
+template <class... Args>
+struct destructure_pattern
+{
+    using value_type = std::tuple<Args...>;
+
+    destructure_pattern(const destructure_pattern&) = default;
+    destructure_pattern(destructure_pattern&&) = default;
+
+    template <class... U>
+        requires(sizeof...(U) == sizeof...(Args))
+    constexpr explicit destructure_pattern(U&&... values)
+        : value_(std::forward<U>(values)...)
+    {
+    }
+
+    template <class U>
+    constexpr bool operator()(const U& value_to_test) const
+    {
+        using U2 = std::remove_cvref_t<U>;
+
+        if constexpr (detail::aggregate_destructurable_v<U2, sizeof...(Args)>)
         {
             return tuple_unpacker<sizeof...(Args)>::apply([](const auto& x, const auto& y)
                 requires requires{ { evaluate_match(x, y) } -> std::same_as<bool>; }
             {
                 return evaluate_match(x, y);
-            }, value, to_tuple_t<member_count_v<U>>{}(value_to_test));
+            }, value_, to_tuple_t<member_count_v<U2>>{}(value_to_test));
         }
-        else if constexpr (std::tuple_size_v<U> >= sizeof...(Args))
+        else if constexpr (detail::tuple_destructurable_v<U2, sizeof...(Args)>)
         {
             return tuple_unpacker<sizeof...(Args)>::apply([](const auto& x, const auto& y)
                 requires requires{ { evaluate_match(x, y) } -> std::same_as<bool>; }
             {
                 return evaluate_match(x, y);
-            }, value, value_to_test);
+            }, value_, value_to_test);
         }
         else
         {
-            static_assert(always_false_v<T, U>, "Impossible to evaluate destructure matching between T and U");
+            if constexpr (detail::destructurable_candidate_v<U2>)
+                static_assert(always_false_v<value_type, U>, "Destructure pattern has more fields than the matched value");
+            else
+                static_assert(always_false_v<value_type, U>, "Destructure pattern requires a tuple-like or aggregate matched value");
         }
-    });
+    }
+
+    template <class U>
+        requires detail::destructurable_v<U, sizeof...(Args)>
+    constexpr auto captures(U&& value_to_test) const
+    {
+        using U2 = std::remove_cvref_t<U>;
+
+        if constexpr (detail::aggregate_destructurable_v<U2, sizeof...(Args)>)
+        {
+            auto members = detail::forward_to_tuple_t<member_count_v<U2>>{}(std::forward<U>(value_to_test));
+            return detail::take_tuple<sizeof...(Args)>(members);
+        }
+        else if constexpr (detail::tuple_destructurable_v<U2, sizeof...(Args)>)
+        {
+            return detail::take_tuple<sizeof...(Args)>(std::forward<U>(value_to_test));
+        }
+        else
+        {
+            static_assert(always_false_v<value_type, U>, "Impossible to capture destructure matching between T and U");
+        }
+    }
+
+private:
+    [[no_unique_address]] value_type value_;
+};
+
+template <class... Args>
+constexpr auto ds(Args&&... values) noexcept
+{
+    return destructure_pattern<std::decay_t<Args>...>{ std::forward<Args>(values)... };
+}
+
+template <class T, class U>
+constexpr auto match_captures([[maybe_unused]] const T& pattern, U&& value)
+{
+    return std::forward_as_tuple(std::forward<U>(value));
+}
+
+template <class... Args, class U>
+    requires detail::destructurable_v<U, sizeof...(Args)>
+constexpr auto match_captures(const destructure_pattern<Args...>& pattern, U&& value)
+{
+    return pattern.captures(std::forward<U>(value));
+}
+
+template <class... Args, class U>
+    requires (!detail::destructurable_v<U, sizeof...(Args)>)
+constexpr auto match_captures([[maybe_unused]] const destructure_pattern<Args...>& pattern, U&& value)
+{
+    if constexpr (detail::destructurable_candidate_v<U>)
+        static_assert(always_false_v<U>, "Destructure pattern has more fields than the matched value");
+    else
+        static_assert(always_false_v<U>, "Destructure pattern requires a tuple-like or aggregate matched value");
+
+    return std::forward_as_tuple(std::forward<U>(value));
 }
 
 namespace detail {
@@ -1302,6 +1534,55 @@ decltype(auto) invoke_with_polymorphic_cast(F&& f, std::index_sequence<I...>, U&
         polymorphic_cast<function_argument_t<I, std::remove_reference_t<F>>>(std::forward<U>(u))...
     );
 }
+
+template <class PatternTuple, class ValueTuple, std::size_t... I>
+constexpr auto capture_tuple(PatternTuple&& patterns, ValueTuple&& values, std::index_sequence<I...>)
+{
+    return std::tuple_cat(
+        ptm::match_captures(
+            std::get<I>(std::forward<PatternTuple>(patterns)),
+            std::get<I>(std::forward<ValueTuple>(values))
+        )...
+    );
+}
+
+template <class PatternTuple, class ValueTuple>
+using capture_tuple_t = decltype(capture_tuple(
+    std::declval<PatternTuple>(),
+    std::declval<ValueTuple>(),
+    std::make_index_sequence<std::tuple_size_v<remove_cvref_t<PatternTuple>>>{}
+));
+
+template <class F, class Tuple, std::size_t... I>
+consteval bool tuple_invocable(std::index_sequence<I...>)
+{
+    return std::is_invocable_v<F, decltype(std::get<I>(std::declval<Tuple>()))...>;
+}
+
+template <class F, class PatternTuple, class... U>
+consteval bool invocable_with_match_captures()
+{
+    using value_tuple = std::tuple<U...>;
+    using captures_tuple = capture_tuple_t<const PatternTuple&, value_tuple>;
+
+    return tuple_invocable<F, captures_tuple>(std::make_index_sequence<std::tuple_size_v<captures_tuple>>{});
+}
+
+template <class F, class PatternTuple, class... U>
+decltype(auto) invoke_with_match_captures(F&& f, const PatternTuple& patterns, U&&... values)
+{
+    auto value_tuple = std::forward_as_tuple(std::forward<U>(values)...);
+    auto captures = capture_tuple(
+        patterns,
+        value_tuple,
+        std::make_index_sequence<std::tuple_size_v<remove_cvref_t<PatternTuple>>>{}
+    );
+
+    return std::apply([&]<class... C>(C&&... c) -> decltype(auto)
+    {
+        return std::invoke(std::forward<F>(f), std::forward<C>(c)...);
+    }, captures);
+}
 } 
 
 template <class F, class... U>
@@ -1342,6 +1623,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (detail::invocable_with_match_captures<T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
+
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
                 result_,
@@ -1370,6 +1654,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (detail::invocable_with_match_captures<T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(std::move(result_), args_, std::forward<U>(values_to_test)...);
 
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
@@ -1400,6 +1687,9 @@ struct matcher
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
 
+        else if constexpr (detail::invocable_with_match_captures<const T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
+
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
                 result_,
@@ -1428,6 +1718,9 @@ struct matcher
 
         else if constexpr (std::is_invocable_v<const T, decltype(dereference(values_to_test))...>)
             return result_(dereference(values_to_test)...);
+
+        else if constexpr (detail::invocable_with_match_captures<const T, decltype(args_), decltype(std::forward<U>(values_to_test))...>())
+            return detail::invoke_with_match_captures(result_, args_, std::forward<U>(values_to_test)...);
 
         else if constexpr (polymorphically_invocable_v<decltype(result_), decltype(std::forward<U>(values_to_test))...>)
             return detail::invoke_with_polymorphic_cast(
@@ -1461,7 +1754,7 @@ template <class... Args>
 struct match_pattern
 {
     constexpr explicit match_pattern(Args&&... args)
-        : args_(std::forward_as_tuple(args...))
+        : args_(std::forward<Args>(args)...)
     {
     }
 
