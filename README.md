@@ -346,7 +346,7 @@ match(x)
 - [x] Composable predicates
 - [x] Simple to write custom predicates
 - [x] Ranges predicate support for input ranges
-- [ ] Improved compile time error reporting
+- [x] Improved compile time error reporting
 
 ## Code generation comparison
 

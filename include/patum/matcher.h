@@ -148,6 +148,15 @@ decltype(auto) invoke_with_match_captures(F&& f, const PatternTuple& patterns, U
         return std::invoke(std::forward<F>(f), std::forward<C>(c)...);
     }, captures);
 }
+
+template <class F, class... U>
+consteval void report_invalid_matcher_action()
+{
+    static_assert(
+        always_false_v<F, U...>,
+        "Matcher action is callable but cannot be invoked with matched values, dereferenced matched values, destructured captures, or supported polymorphic casts"
+    );
+}
 } // namespace detail
 
 template <class F, class... U>
@@ -201,7 +210,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return result_;
@@ -233,7 +242,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return std::move(result_);
@@ -265,7 +274,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return result_;
@@ -297,7 +306,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return std::move(result_);

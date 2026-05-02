@@ -27,17 +27,53 @@ namespace ptm {
 
 //=================================================================================================
 
+namespace detail {
+
+template <class T, class U>
+concept predicate_match_evaluable = requires(const T& lhs, const U& rhs)
+{
+    { lhs(rhs) } -> std::convertible_to<bool>;
+};
+
+template <class T, class U>
+concept string_match_evaluable =
+    StringLike<std::remove_cvref_t<T>> && StringLike<std::remove_cvref_t<U>>;
+
+template <class T, class U>
+concept equality_match_evaluable = requires(const T& lhs, const U& rhs)
+{
+    { lhs == rhs } -> std::convertible_to<bool>;
+};
+
+template <class T, class U>
+inline static constexpr bool match_evaluable_v =
+    predicate_match_evaluable<T, U> ||
+    string_match_evaluable<T, U> ||
+    equality_match_evaluable<T, U>;
+
+}
+
+//=================================================================================================
+
 template <class T, class U>
 constexpr bool evaluate_match(const T& lhs, const U& rhs)
 {
-    if constexpr (requires { { lhs(rhs) } -> std::convertible_to<bool>; })
+    if constexpr (detail::predicate_match_evaluable<T, U>)
         return lhs(rhs);
 
-    else if constexpr (StringLike<std::remove_cvref_t<T>> and StringLike<std::remove_cvref_t<U>>)
+    else if constexpr (detail::string_match_evaluable<T, U>)
         return std::string_view(lhs) == std::string_view(rhs);
 
-    else
+    else if constexpr (detail::equality_match_evaluable<T, U>)
         return lhs == rhs;
+
+    else
+    {
+        static_assert(
+            always_false_v<T, U>,
+            "Pattern cannot be evaluated against the matched value: use a predicate returning bool or provide operator=="
+        );
+    }
 }
 
 //=================================================================================================

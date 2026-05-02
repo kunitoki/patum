@@ -86,6 +86,10 @@ int movable_copyable::copy_count = 0;
 int movable_copyable::move_count = 0;
 int movable_copyable::copy_assign_count = 0;
 int movable_copyable::move_assign_count = 0;
+
+struct not_equality_comparable
+{
+};
 } // namespace
 
 //=================================================================================================
@@ -127,6 +131,9 @@ TEST_CASE("Patum invarians", "[match][invariants]")
     static_assert(not specifying_wrong_match_numbers_valid_expression<int>);
     static_assert(not specifying_wrong_pattern_numbers_valid_expression<int>);
     static_assert(specifying_incompatible_returned_types_should_return_void<int>);
+    static_assert(not ptm::detail::match_evaluable_v<not_equality_comparable, not_equality_comparable>);
+    static_assert(ptm::detail::valid_match_expression<1, decltype(ptm::pattern(ptm::_) = 1)>);
+    static_assert(not ptm::detail::valid_match_expression<2, decltype(ptm::pattern(ptm::_) = 1)>);
 }
 
 //=================================================================================================

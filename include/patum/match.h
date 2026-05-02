@@ -11,6 +11,7 @@
 #include <concepts>
 #include <optional>
 #include <tuple>
+#include <type_traits>
 
 #include "match_expression.h"
 
@@ -28,6 +29,31 @@ template <class... M>
 constexpr bool compatible_patterns_args(std::size_t count) noexcept
 {
     return (true && ... && (count == M::capture_count));
+}
+
+namespace detail {
+
+template <class T>
+concept matcher_like = requires
+{
+    { std::remove_cvref_t<T>::capture_count } -> std::convertible_to<std::size_t>;
+};
+
+template <class... M>
+concept non_empty_matcher_pack = sizeof...(M) != 0;
+
+template <class... M>
+concept compatible_matcher_pack = (matcher_like<M> && ...);
+
+template <std::size_t Count, class... M>
+concept compatible_matcher_arity = (true && ... && (Count == std::remove_cvref_t<M>::capture_count));
+
+template <std::size_t Count, class... M>
+concept valid_match_expression =
+    non_empty_matcher_pack<M...> &&
+    compatible_matcher_pack<M...> &&
+    compatible_matcher_arity<Count, M...>;
+
 }
 
 //=================================================================================================
@@ -82,9 +108,7 @@ struct match_helper
     }
 
     template <class... M>
-        requires(compatible_patterns<M...>()
-            && compatible_patterns_args<M...>(sizeof...(E))
-            && sizeof...(M) != 0)
+        requires detail::valid_match_expression<sizeof...(E), M...>
     constexpr auto operator()(M&&... matchers) const
     {
         using ReturnType = non_void_common_type_t<decltype(test_expressions(matchers, expressions_))...>;

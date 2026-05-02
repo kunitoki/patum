@@ -421,17 +421,51 @@ struct overload_set : L...
 
 namespace ptm {
 
+namespace detail {
+
+template <class T, class U>
+concept predicate_match_evaluable = requires(const T& lhs, const U& rhs)
+{
+    { lhs(rhs) } -> std::convertible_to<bool>;
+};
+
+template <class T, class U>
+concept string_match_evaluable =
+    StringLike<std::remove_cvref_t<T>> && StringLike<std::remove_cvref_t<U>>;
+
+template <class T, class U>
+concept equality_match_evaluable = requires(const T& lhs, const U& rhs)
+{
+    { lhs == rhs } -> std::convertible_to<bool>;
+};
+
+template <class T, class U>
+inline static constexpr bool match_evaluable_v =
+    predicate_match_evaluable<T, U> ||
+    string_match_evaluable<T, U> ||
+    equality_match_evaluable<T, U>;
+
+}
+
 template <class T, class U>
 constexpr bool evaluate_match(const T& lhs, const U& rhs)
 {
-    if constexpr (requires { { lhs(rhs) } -> std::convertible_to<bool>; })
+    if constexpr (detail::predicate_match_evaluable<T, U>)
         return lhs(rhs);
 
-    else if constexpr (StringLike<std::remove_cvref_t<T>> and StringLike<std::remove_cvref_t<U>>)
+    else if constexpr (detail::string_match_evaluable<T, U>)
         return std::string_view(lhs) == std::string_view(rhs);
 
-    else
+    else if constexpr (detail::equality_match_evaluable<T, U>)
         return lhs == rhs;
+
+    else
+    {
+        static_assert(
+            always_false_v<T, U>,
+            "Pattern cannot be evaluated against the matched value: use a predicate returning bool or provide operator=="
+        );
+    }
 }
 
 template <class F>
@@ -1583,6 +1617,15 @@ decltype(auto) invoke_with_match_captures(F&& f, const PatternTuple& patterns, U
         return std::invoke(std::forward<F>(f), std::forward<C>(c)...);
     }, captures);
 }
+
+template <class F, class... U>
+consteval void report_invalid_matcher_action()
+{
+    static_assert(
+        always_false_v<F, U...>,
+        "Matcher action is callable but cannot be invoked with matched values, dereferenced matched values, destructured captures, or supported polymorphic casts"
+    );
+}
 } 
 
 template <class F, class... U>
@@ -1634,7 +1677,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return result_;
@@ -1666,7 +1709,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return std::move(result_);
@@ -1698,7 +1741,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return result_;
@@ -1730,7 +1773,7 @@ struct matcher
             );
 
         else if constexpr (is_callable_v<decltype(result_)>)
-            static_assert(always_false_v<decltype(result_)>);
+            detail::report_invalid_matcher_action<decltype(result_), decltype(std::forward<U>(values_to_test))...>();
 
         else
             return std::move(result_);
@@ -1830,6 +1873,31 @@ constexpr bool compatible_patterns_args(std::size_t count) noexcept
     return (true && ... && (count == M::capture_count));
 }
 
+namespace detail {
+
+template <class T>
+concept matcher_like = requires
+{
+    { std::remove_cvref_t<T>::capture_count } -> std::convertible_to<std::size_t>;
+};
+
+template <class... M>
+concept non_empty_matcher_pack = sizeof...(M) != 0;
+
+template <class... M>
+concept compatible_matcher_pack = (matcher_like<M> && ...);
+
+template <std::size_t Count, class... M>
+concept compatible_matcher_arity = (true && ... && (Count == std::remove_cvref_t<M>::capture_count));
+
+template <std::size_t Count, class... M>
+concept valid_match_expression =
+    non_empty_matcher_pack<M...> &&
+    compatible_matcher_pack<M...> &&
+    compatible_matcher_arity<Count, M...>;
+
+}
+
 template <class M, class E>
 constexpr auto match_expressions(const M& matcher, const E& expressions)
 {
@@ -1878,9 +1946,7 @@ struct match_helper
     }
 
     template <class... M>
-        requires(compatible_patterns<M...>()
-            && compatible_patterns_args<M...>(sizeof...(E))
-            && sizeof...(M) != 0)
+        requires detail::valid_match_expression<sizeof...(E), M...>
     constexpr auto operator()(M&&... matchers) const
     {
         using ReturnType = non_void_common_type_t<decltype(test_expressions(matchers, expressions_))...>;
