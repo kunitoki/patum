@@ -1279,7 +1279,6 @@ TEST_CASE("Simple matcher is type on generic", "[match][is]")
 
 //=================================================================================================
 
-/*
 namespace {
 struct Shape { virtual ~Shape() = default; };
 struct Circle : Shape { Circle(int r) : radius(r) {} int radius; };
@@ -1288,28 +1287,31 @@ struct Rectangle : Shape { Rectangle(int w, int h) : width(w), height(h) {} int 
 
 TEST_CASE("Simple matcher is type on polymorphic", "[match][is][polymorphic]")
 {
-    auto get_area = [](const Shape& shape)
+    auto get_area = [](Shape* shape)
     {
         return match(shape)
         (
-            pattern(is<Circle>)    = [](auto&& c) { return 3.14 * c.radius * c.radius; },
-            pattern(is<Rectangle>) = [](auto&& r) { return r.width * r.height; }
+            pattern(some() and is<Circle>)    = [](Circle* c) {
+                return 3.14 * c->radius * c->radius;
+            },
+            pattern(some() and is<Rectangle>) = [](Rectangle* r) {
+                return r->width * r->height;
+            }
         ).value_or(0);
     };
 
     {
         auto shape = Rectangle{ 100, 200 };
-        auto area = get_area(shape);
+        auto area = get_area(&shape);
         CHECK(100 * 200 == area);
     }
 
     {
         auto shape = Circle{ 100 };
-        auto area = get_area(shape);
+        auto area = get_area(&shape);
         CHECK(3.14 * 100 * 100 == area);
     }
 }
-*/
 
 //=================================================================================================
 

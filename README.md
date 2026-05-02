@@ -98,7 +98,7 @@ match(x)
 Type checks in matchers:
 ```cpp
 template <class T>
-auto stringize_type(T* = nullptr)
+auto stringize_type(T* x = nullptr)
 {
     using namespace ptm;
 
@@ -114,8 +114,33 @@ auto stringize_type(T* = nullptr)
     ).value_or("invalid");
 }
 
-int x 42;
+int x = 42;
 std::cout << stringize_type(&x) << " x = " << x;
+```
+
+Polymorphic type checks and callable dispatch:
+```cpp
+using namespace ptm;
+
+struct Shape { virtual ~Shape() = default; };
+struct Circle : Shape { Circle(int r) : radius(r) {} int radius; };
+struct Rectangle : Shape { Rectangle(int w, int h) : width(w), height(h) {} int width, height; };
+
+auto area = [](Shape* shape)
+{
+    return match(shape)
+    (
+        pattern(some() && is<Circle>)    = [](Circle* c) {
+            return 3.14 * c->radius * c->radius;
+        },
+        pattern(some() && is<Rectangle>) = [](Rectangle* r) {
+            return r->width * r->height;
+        }
+    ).value_or(0.0);
+};
+
+Circle c{ 10 };
+assert(area(&c) == 314.0);
 ```
 
 Composable predicates matching:
@@ -164,13 +189,35 @@ Optional and pointer types matching:
 using namespace ptm;
 
 std::optional<int> x = 12;
+auto y = std::make_unique<int>(42);
 
 match(x)
 (
     pattern(some())   = []  { std::cout << "found some value"; },
     pattern(some(13)) = [&] { std::cout << "found a 13 value"; },
-    pattern(none)     = []  { std::cout << "found no value"; }
+    pattern(none)     = []  { std::cout << "found no value"; },
     pattern(_)        = []  { std::cout << "found nothing"; }
+);
+
+match(y)
+(
+    pattern(some(42)) = [](int value) { std::cout << "found value:" << value; },
+    pattern(none)     = [] { std::cout << "found no pointer"; }
+);
+```
+
+Variant type and value matching:
+```cpp
+using namespace ptm;
+
+std::variant<int, std::string> x = "hello";
+
+match(x)
+(
+    pattern(typed<int>)         = [] { std::cout << "found an int"; },
+    pattern(valued("hello"s))   = [] { std::cout << "found the string value"; },
+    pattern(typed<std::string>) = [] { std::cout << "found a string"; },
+    pattern(_)                  = [] { std::cout << "found something else"; }
 );
 ```
 
@@ -228,6 +275,27 @@ match("abcdefg_123456")
 );
 ```
 
+Range and size predicates:
+```cpp
+using namespace ptm;
+
+std::vector<int> x = { 1, 2, 3, 4, 5 };
+
+match(x)
+(
+    pattern(sized(5))                        = [] { std::cout << "found five values"; },
+    pattern(find(3) != end())                = [] { std::cout << "found value 3"; },
+    pattern(next(begin()) == prev(end(), 4)) = [] { std::cout << "iterators line up"; },
+    pattern(_)                               = [] { std::cout << "found no match"; }
+);
+
+match(x)
+(
+    pattern(size(_x) == 5 && ssize(_x) > 0) = [] { std::cout << "non-empty five-value range"; },
+    pattern(_)                             = [] { std::cout << "found no match"; }
+);
+```
+
 ## Features
 
 - [x] Fully constexpr (apart from regex and other strings manipulations)
@@ -235,12 +303,18 @@ match("abcdefg_123456")
 - [x] Single and multiple match expressions
 - [x] Match return value support using common type
 - [x] Matchers lambda support with captures and return value
+- [x] Matcher callables can receive matched values
+- [x] Polymorphic matcher callables can receive dynamically cast pointer/reference values
 - [x] Catch all matcher wildcard
+- [x] String-like matching between literals, std::string, and std::string_view
 - [x] Integral types range matcher
 - [x] Set inclusion matcher
-- [x] Some and None matchers for std::optional, raw and smart pointer types
+- [x] Some and None matchers for std::optional, raw and smart pointer types, with value forwarding
 - [x] Typed and valued matchers for std::variant
-- [x] Typed matcher for expression
+- [x] Typed matcher for expressions
+- [x] Polymorphic typed matcher for base pointers/references
+- [x] Size and signed-size matchers
+- [x] Range iterator predicates: begin, end, next, prev, find
 - [x] Regex matcher (std::regex)
 - [x] Regex matcher (google's re2 support)
 - [x] Destructuring std::tuple / std::pair matcher
@@ -248,7 +322,7 @@ match("abcdefg_123456")
 - [ ] Forwarding destructured matches to match callables
 - [x] Composable predicates
 - [x] Simple to write custom predicates
-- [ ] Ranges support
+- [x] Ranges predicate support for input ranges
 - [ ] Improved compile time error reporting
 
 ## Code generation comparison

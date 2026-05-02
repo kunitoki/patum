@@ -10,8 +10,10 @@
 
 #include <concepts>
 #include <iterator>
+#include <memory>
 #include <ranges>
 #include <regex>
+#include <typeinfo>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -524,7 +526,33 @@ inline static constexpr auto typed = predicate([]<class U>([[maybe_unused]] cons
 template <class T>
 inline static constexpr auto is = predicate([]<class U>([[maybe_unused]] const U& value_to_test)
 {
-    return std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
+    using T2 = std::remove_cvref_t<T>;
+    using U2 = std::remove_cvref_t<U>;
+
+    if constexpr (std::same_as<T2, U2> || std::is_base_of_v<T2, U2>)
+        return true;
+
+    else if constexpr (std::is_pointer_v<U2> && std::is_class_v<T2>)
+    {
+        using From = std::remove_pointer_t<U2>;
+        using From2 = std::remove_cv_t<From>;
+        using ToPtr = std::conditional_t<std::is_const_v<From>, const T2*, T2*>;
+
+        if constexpr (std::same_as<T2, From2> || std::is_base_of_v<T2, From2>)
+            return true;
+
+        else if constexpr (std::is_polymorphic_v<T2> && std::is_polymorphic_v<From2>)
+            return dynamic_cast<ToPtr>(value_to_test) != nullptr;
+
+        else
+            return false;
+    }
+
+    else if constexpr (std::is_polymorphic_v<T2> && std::is_polymorphic_v<U2>)
+        return dynamic_cast<const T2*>(std::addressof(value_to_test)) != nullptr;
+
+    else
+        return false;
 });
 
 //=================================================================================================
