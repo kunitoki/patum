@@ -21,6 +21,21 @@ inline static constexpr bool always_false_v = false;
 
 //=================================================================================================
 
+template <class T, class = void>
+struct is_callable : std::false_type
+{
+};
+
+template <class T>
+struct is_callable<T, std::void_t<decltype(&std::remove_cvref_t<T>::operator())>> : std::true_type
+{
+};
+
+template <class T>
+inline static constexpr bool is_callable_v = is_callable<T>::value;
+
+//=================================================================================================
+
 template <class T, template <class...> class Primary>
 struct is_specialization_of;
 
