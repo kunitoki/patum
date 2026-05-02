@@ -452,7 +452,7 @@ constexpr auto operator>>(const predicate<F>& m, const T& t)
 template <class F, class T>
 constexpr auto operator>>(const T& t, const predicate<F>& m)
 {
-    return predicate([m, &t](const auto& x) { return t << m(x); });
+    return predicate([m, &t](const auto& x) { return t >> m(x); });
 }
 
 template <class F, class F2>

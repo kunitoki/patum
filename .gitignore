@@ -42,6 +42,11 @@ dgph
 *.app
 
 # Folders
-build/*
-.gitnexus
+build*/
 .idea
+
+# LLM Agents
+.claude
+.gitnexus
+AGENTS.md
+CLAUDE.md
